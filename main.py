@@ -10,7 +10,178 @@ df = pd.read_csv("data/business_data.csv")
 def get_dynamic_context(question, df):
     question_lower = question.lower()
 
-    if "return rate" in question_lower:
+    # Revenue analysis
+    if "revenue" in question_lower:
+        if "category" in question_lower or "product" in question_lower:
+            summary = (
+                df.groupby("ProductCategory")["Revenue"]
+                .sum()
+                .sort_values(ascending=False)
+            )
+
+            return f"""
+Revenue by Product Category:
+{summary.to_string()}
+"""
+
+        elif "region" in question_lower or "market" in question_lower:
+            summary = (
+                df.groupby("Region")["Revenue"]
+                .sum()
+                .sort_values(ascending=False)
+            )
+
+            return f"""
+Revenue by Region:
+{summary.to_string()}
+"""
+
+    # Marketing efficiency / ROI analysis
+    if (
+        "marketing efficiency" in question_lower
+        or "marketing roi" in question_lower
+        or "roas" in question_lower
+        or "revenue per marketing" in question_lower
+    ):
+        summary = (
+            df.groupby("Region")
+            .agg(
+                TotalRevenue=("Revenue", "sum"),
+                TotalMarketingSpend=("MarketingSpend", "sum")
+            )
+        )
+
+        summary["RevenuePerMarketingDollar"] = (
+            summary["TotalRevenue"] / summary["TotalMarketingSpend"]
+        ).round(2)
+
+        summary = summary.sort_values(
+            "RevenuePerMarketingDollar",
+            ascending=False
+        )
+
+        return f"""
+Marketing Efficiency by Region:
+{summary.to_string()}
+"""
+
+    # Marketing spend analysis
+    if "marketing" in question_lower or "marketing spend" in question_lower:
+        if "category" in question_lower or "product" in question_lower:
+            summary = (
+                df.groupby("ProductCategory")["MarketingSpend"]
+                .sum()
+                .sort_values(ascending=False)
+            )
+
+            return f"""
+Total Marketing Spend by Product Category:
+{summary.to_string()}
+"""
+
+        else:
+            summary = (
+                df.groupby("Region")["MarketingSpend"]
+                .sum()
+                .sort_values(ascending=False)
+            )
+
+            return f"""
+Total Marketing Spend by Region:
+{summary.to_string()}
+"""
+
+    # Orders analysis
+    if "orders" in question_lower or "order volume" in question_lower:
+        if "category" in question_lower or "product" in question_lower:
+            summary = (
+                df.groupby("ProductCategory")["Orders"]
+                .sum()
+                .sort_values(ascending=False)
+            )
+
+            return f"""
+Total Orders by Product Category:
+{summary.to_string()}
+"""
+
+        else:
+            summary = (
+                df.groupby("Region")["Orders"]
+                .sum()
+                .sort_values(ascending=False)
+            )
+
+            return f"""
+Total Orders by Region:
+{summary.to_string()}
+"""
+
+    # Average Order Value analysis
+    if (
+        "aov" in question_lower
+        or "average order value" in question_lower
+    ):
+        if "region" in question_lower or "market" in question_lower:
+            summary = (
+                df.groupby("Region")["AverageOrderValue"]
+                .mean()
+                .sort_values(ascending=False)
+                .round(2)
+            )
+
+            return f"""
+Average Order Value by Region:
+{summary.to_string()}
+"""
+
+        else:
+            summary = (
+                df.groupby("ProductCategory")["AverageOrderValue"]
+                .mean()
+                .sort_values(ascending=False)
+                .round(2)
+            )
+
+            return f"""
+Average Order Value by Product Category:
+{summary.to_string()}
+"""
+
+    # Customer satisfaction analysis
+    if (
+        "satisfaction" in question_lower
+        or "customer satisfaction" in question_lower
+        or "cx" in question_lower
+    ):
+        if "category" in question_lower or "product" in question_lower:
+            summary = (
+                df.groupby("ProductCategory")["CustomerSatisfaction"]
+                .mean()
+                .sort_values(ascending=False)
+                .round(2)
+            )
+
+            return f"""
+Average Customer Satisfaction by Product Category:
+{summary.to_string()}
+"""
+
+        else:
+            summary = (
+                df.groupby("Region")["CustomerSatisfaction"]
+                .mean()
+                .sort_values(ascending=False)
+                .round(2)
+            )
+
+            return f"""
+Average Customer Satisfaction by Region:
+{summary.to_string()}
+"""
+
+    # Return rate analysis
+    if "return rate" in question_lower or "returns" in question_lower:
         if "category" in question_lower or "product" in question_lower:
             summary = (
                 df.groupby("ProductCategory")["ReturnRate"]
@@ -24,7 +195,7 @@ Average Return Rate by Product Category:
 {summary.to_string()}
 """
 
-        elif "region" in question_lower:
+        else:
             summary = (
                 df.groupby("Region")["ReturnRate"]
                 .mean()
@@ -37,27 +208,30 @@ Average Return Rate by Region:
 {summary.to_string()}
 """
 
-    elif "marketing" in question_lower or "marketing spend" in question_lower:
-        summary = (
-            df.groupby("Region")["MarketingSpend"]
-            .sum()
-            .sort_values(ascending=False)
-        )
+    # Conversion rate analysis
+    if "conversion" in question_lower or "conversion rate" in question_lower:
+        if "category" in question_lower or "product" in question_lower:
+            summary = (
+                df.groupby("ProductCategory")["ConversionRate"]
+                .mean()
+                .sort_values(ascending=False)
+                .round(4)
+            )
 
-        return f"""
-Total Marketing Spend by Region:
+            return f"""
+Average Conversion Rate by Product Category:
 {summary.to_string()}
 """
 
-    elif "conversion" in question_lower or "conversion rate" in question_lower:
-        summary = (
-            df.groupby("Region")["ConversionRate"]
-            .mean()
-            .sort_values(ascending=False)
-            .round(4)
-        )
+        else:
+            summary = (
+                df.groupby("Region")["ConversionRate"]
+                .mean()
+                .sort_values(ascending=False)
+                .round(4)
+            )
 
-        return f"""
+            return f"""
 Average Conversion Rate by Region:
 {summary.to_string()}
 """
