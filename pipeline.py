@@ -100,7 +100,9 @@ def interpret_result(question: str, sql: str, df, client, model: str = "gpt-5-mi
         "   the conclusion (2-4 of them). Ignore metrics that are nearly identical across\n"
         "   rows or irrelevant to the question — a good analyst chooses, never dumps.\n"
         "3. Format every number for a human: 11.58 not 11.584695; $9.23M not 9230791.08;\n"
-        "   4.24 / 5 for ratings; 8.4% for rates. Round sensibly.\n\n"
+        "   4.24 / 5 for ratings; 8.4% for rates. Round sensibly.\n"
+        "4. Plain text only. Do NOT use markdown formatting — no backticks, no asterisks,\n"
+        "   no code formatting. Every number and field appears as ordinary prose.\n\n"
         "Respond in exactly this format, keeping each part tight:\n"
         "Direct Answer:\n[One or two sentences. The conclusion only.]\n\n"
         "KPI Evidence:\n[Only the 2-4 formatted numbers that support the answer.]\n\n"
@@ -111,7 +113,9 @@ def interpret_result(question: str, sql: str, df, client, model: str = "gpt-5-mi
         f"=== Query result ===\n{table_text}\n"
     )
     resp = client.responses.create(model=model, input=prompt)
-    return resp.output_text
+    # defense-in-depth: strip stray backticks the model may still emit, so text
+    # like "11.58 vs Singapore" never renders as green inline code in the UI.
+    return resp.output_text.replace("`", "")
 
 
 if __name__ == "__main__":
