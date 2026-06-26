@@ -1,6 +1,6 @@
+streamlit
 pandas
 openai
-python-dotenv
-streamlit
 altair
+python-dotenv
 duckdb

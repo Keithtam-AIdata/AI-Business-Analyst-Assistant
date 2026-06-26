@@ -1,4 +1,20 @@
+# Secrets
 .env
 .streamlit/secrets.toml
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
+
+# Local databases / artifacts
+*.duckdb
+
+# Environments
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.vscode/
