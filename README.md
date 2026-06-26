@@ -4,7 +4,7 @@ A text-to-SQL analytics copilot. Ask a business question in plain English; the
 assistant **writes SQL, safety-checks it, runs it on a DuckDB warehouse, and
 explains the result** — showing you the exact query and data behind every answer.
 
-**[Live demo](https://ai-business-analyst-assistant-bnzdwzqs6eyetgbfawdnyp.streamlit.app/)**
+**[Live demo](https://text-to-sql-analytics-assistant-i4mqokeozgmpvbqibermts.streamlit.app/)**
 
 ---
 
