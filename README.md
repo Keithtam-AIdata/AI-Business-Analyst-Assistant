@@ -1,230 +1,147 @@
-# ChatGPT-Style Business Analytics Assistant
+# AI Business Analyst Assistant
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-ff4b4b?logo=streamlit&logoColor=white)](https://ai-business-analyst-assistant-bnzdwzqs6eyetgbfawdnyp.streamlit.app/)
+A text-to-SQL analytics copilot. Ask a business question in plain English; the
+assistant **writes SQL, safety-checks it, runs it on a DuckDB warehouse, and
+explains the result** — showing you the exact query and data behind every answer.
 
-An AI-powered business analytics assistant that allows users to ask natural language questions about e-commerce KPI performance and receive structured, KPI-backed business insights.
-
-This project demonstrates how Python, Pandas, Streamlit, and the OpenAI API can be combined to create a lightweight analytics copilot for business users.
-
----
-
-## Project Overview
-
-Business users often need quick answers to performance questions such as:
-
-* Which region has the best marketing efficiency?
-* Which product category has the highest return rate?
-* Which region generated the highest revenue?
-* Which category has the highest average order value?
-* What are the key regional performance risks?
-
-Instead of manually reviewing spreadsheets or dashboards, this assistant allows users to ask questions in natural language and receive a structured business response with:
-
-* Direct Answer
-* KPI Evidence
-* Business Interpretation
-* Recommended Next Step
+**[Live demo](https://ai-business-analyst-assistant-bnzdwzqs6eyetgbfawdnyp.streamlit.app/)**
 
 ---
 
-## Key Features
+## The problem
 
-* ChatGPT-style natural language question answering
-* Dynamic KPI engine using Python and Pandas
-* AI-generated business insights using the OpenAI API
-* Streamlit web interface for interactive analysis
-* Executive KPI overview cards
-* Revenue and marketing efficiency visualizations
-* Data explorer for regional and product category performance
-* Structured business response format for decision-making
+Business users constantly need answers from data — "which market is most
+efficient?", "which category loses the most to returns?" — but getting them means
+opening a dashboard, filtering, and reading numbers manually, or waiting on an
+analyst to write SQL.
+
+A generic AI chatbot can't be trusted here: language models *guess* numbers. This
+project's design principle is the opposite:
+
+> **The AI writes and runs SQL against real data. It only ever interprets numbers
+> it actually computed — it never invents them.**
+
+Every answer surfaces the SQL and the query result, so the work is auditable.
 
 ---
 
-## Tech Stack
+## How it works
 
-* Python
-* Pandas
-* OpenAI API
-* Streamlit
-* Altair
-* python-dotenv
+```mermaid
+flowchart TD
+    Q[User question] --> G[text-to-SQL<br/>LLM writes SQL from the schema]
+    G --> V{SQL guardrail}
+    V -->|unsafe| B[Blocked — safety stop, no retry]
+    V -->|safe| E[Execute on DuckDB]
+    E -->|execution error| R[Self-correct<br/>feed error back, retry once]
+    R --> E
+    E -->|success| I[LLM interprets the result]
+    I --> A[Answer: SQL + result table + business read]
+```
+
+The pipeline separates **safety failures** from **capability failures**: an unsafe
+query is blocked outright, while an execution error gets one self-correction
+attempt (the error is fed back to the model to fix).
+
+---
+
+## Design decisions (the "why", not just the "what")
+
+**Why DuckDB, not Postgres or raw CSV?**
+A CSV isn't queryable with SQL, and Postgres would need a server, credentials, and
+a managed host. DuckDB is an in-process columnar database — zero setup, fast
+aggregation, standard SQL, and trivial to deploy on Streamlit Cloud. It gives a
+real SQL warehouse with the simplicity of reading a file.
+
+**Why a SQL guardrail?**
+The model is helpful but not trusted. Before any query runs, it must pass five
+checks: single statement (blocks injection via a second statement), read-only
+(SELECT/WITH only), no write/DDL keywords, a table allowlist, and an enforced row
+limit. This is the line between *running whatever the AI produced* and
+*validating, then executing*.
+
+**Why an evaluation harness?**
+Generating answers is easy; knowing how often they're right is the hard part. A
+fixed eval set — questions whose correct answers are locked from the real data —
+scores the pipeline automatically, so accuracy is measured, not assumed.
+
+---
+
+## Evaluation
+
+`evaluate.py` runs a fixed question set and scores the pipeline against
+ground-truth answers verified from the data.
+
+| Metric | Result |
+|---|---|
+| Eval questions | 10 |
+| Accuracy | 10 / 10 (100%) |
+
+The set currently covers single-answer analytical questions across countries,
+categories, channels, segments, and quarters. Planned next: multi-condition,
+time-trend, and ambiguously-phrased questions to find where it starts to fail.
+
+---
+
+## Tech stack
+
+| Layer | Tech |
+|---|---|
+| Warehouse | DuckDB |
+| text-to-SQL + interpretation | OpenAI API |
+| App / UI | Streamlit |
+| Data handling | Python · Pandas |
+| Charts | Altair |
 
 ---
 
 ## Dataset
 
-This project uses a simulated retail / e-commerce business performance dataset.
-
-The dataset includes:
-
-* Month
-* Region
-* Product Category
-* Revenue
-* Orders
-* Customers
-* Average Order Value
-* Conversion Rate
-* Marketing Spend
-* Return Rate
-* Customer Satisfaction
-
-The data is synthetic and created for portfolio demonstration purposes.
+Synthetic APAC e-commerce performance data (6,912 rows: 24 months × 4 countries ×
+4 channels × 3 segments × 6 categories). It is **pattern-driven, not random** —
+each metric is built as `base × documented business multipliers × small noise`, so
+patterns like the Q4 holiday peak, Japan's marketing efficiency, and Fashion's
+high return rate are deliberate and explainable. Generated by `generate_data.py`.
 
 ---
 
-## How It Works
+## Project structure
 
-```text
-Business Question
-↓
-Dynamic KPI Selection
-↓
-Pandas Calculation
-↓
-Prompt Context
-↓
-OpenAI Response
-↓
-Business Insight
 ```
-
-The assistant does not rely on the language model to calculate KPIs by guessing.
-
-Instead, the Python data layer calculates the relevant KPI results first. The calculated results are then passed to the OpenAI model as context, and the model explains the results in clear business language.
-
-For a more detailed technical explanation, see [Architecture Overview](docs/architecture.md).
-
----
-
-## Example Questions
-
-```text
-Which region has the best marketing efficiency?
-```
-
-```text
-Which product category has the highest return rate?
-```
-
-```text
-Which category has the highest AOV?
-```
-
-```text
-Summarize regional performance.
+generate_data.py   synthetic, pattern-driven dataset
+db.py              DuckDB warehouse + schema introspection
+text_to_sql.py     natural language -> SQL (schema-aware prompt)
+sql_guard.py       five-check SQL safety validation
+pipeline.py        generate -> guard -> execute -> self-correct -> interpret
+evaluate.py        eval harness (accuracy scoring)
+analytics.py       aggregations powering the dashboard
+app.py             Streamlit UI
+data/              business_data.csv
 ```
 
 ---
 
-## Example AI Response Format
-
-```text
-Direct Answer:
-Japan has the best marketing efficiency, generating $7.09 in revenue per marketing dollar.
-
-KPI Evidence:
-Japan generated $8,243,870 in revenue with $1,163,118 in marketing spend.
-
-Business Interpretation:
-Japan is converting marketing investment into revenue more efficiently than other regions.
-
-Recommended Next Step:
-Review Japan’s marketing strategy and test whether similar tactics can be applied to lower-efficiency regions.
-```
-
----
-
-## Screenshot
-
-![Dashboard Home](screenshots/dashboard_home.png)
-
----
-
-## Project Structure
-
-```text
-AI-Business-Analyst-Assistant/
-│
-├── app.py
-├── main.py
-├── generate_data.py
-├── requirements.txt
-├── README.md
-├── .env.example
-├── .gitignore
-│
-├── data/
-│   └── business_data.csv
-│
-└── screenshots/
-    └── dashboard_home.png
-```
-
----
-
-## How to Run Locally
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/Keithtam-AIdata/AI-Business-Analyst-Assistant.git
-cd AI-Business-Analyst-Assistant
-```
-
-### 2. Install dependencies
+## Run locally
 
 ```bash
 pip install -r requirements.txt
+python generate_data.py          # build data/business_data.csv
+python -m streamlit run app.py    # launch the app
 ```
 
-### 3. Create environment file
+Set `OPENAI_API_KEY` in a `.env` file (local) or Streamlit Secrets (deployment).
+The dashboard works without a key; the AI Q&A needs one.
 
-Copy `.env.example` and rename it to `.env`.
-
-Then add your OpenAI API key:
-
-```text
-OPENAI_API_KEY=your_openai_api_key_here
-```
-
-### 4. Run the Streamlit app
+Useful checks:
 
 ```bash
-python -m streamlit run app.py
+python db.py          # load data + print the schema description
+python evaluate.py    # score the text-to-SQL pipeline
 ```
-
----
-
-## Business Value
-
-This project shows how a business analytics workflow can be enhanced with AI.
-
-Instead of only showing static dashboard metrics, the assistant helps users interpret KPI performance, identify risks, and generate recommended actions.
-
-This makes the project relevant to roles such as:
-
-* Data Analyst
-* BI Analyst
-* Analytics Engineer
-* AI Data Specialist
-* Business Intelligence Developer
-* AI Solutions Analyst
-
----
-
-## Future Enhancements
-
-* Add user-uploaded CSV support
-* Add more advanced KPI intent detection
-* Add monthly trend analysis
-* Add conversation history
-* Add deployment with Streamlit Community Cloud
-* Add document-based RAG support for business reports
-* Add authentication and usage control for public demo deployment
 
 ---
 
 ## Disclaimer
 
-This project uses synthetic data for demonstration purposes only. No real business or customer data is included.
+The dataset is synthetic and for demonstration. Figures reflect designed business
+patterns, not real companies.
