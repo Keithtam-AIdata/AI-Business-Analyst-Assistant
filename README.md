@@ -14,6 +14,11 @@ Everyone keeps saying AI can help with all kinds of things, especially at work.
 I'd been wanting to actually try that for a while — to see what applying AI in
 practice really looks like — so I built this project.
 
+As a data analyst, I'd often see people wait on someone else just to get a number
+out of the data. The idea here was simple: let them ask in plain English — but make
+sure the answer is actually correct, not a confident guess. That balance, useful
+but reliable, is the whole point.
+
 It took a lot of rewriting along the way. At one point I scrapped the whole
 approach and started over, because I learned something important: the AI would
 make up numbers and state them confidently. So I redirected the project toward
